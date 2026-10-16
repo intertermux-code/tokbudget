@@ -1,9 +1,4 @@
-"""SQLite ledger: schema, writes, and the aggregates the report renders.
-
-Timestamps are stored as UTC in SQLite's canonical "YYYY-MM-DD HH:MM:SS" form so
-that the date/time functions work without conversions, and grouped into the
-user's local day at read time.
-"""
+"""SQLite ledger: schema, writes, and the aggregates the report renders."""
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -53,6 +48,14 @@ def local_date(stored: str) -> str:
     """Local calendar day for a stored UTC timestamp."""
     moment = datetime.strptime(stored, UTC_FORMAT).replace(tzinfo=timezone.utc)
     return moment.astimezone().date().isoformat()
+
+
+def week_label(stored: str) -> str:
+    """ISO week label like 2026-W41 for a stored UTC timestamp."""
+    moment = datetime.strptime(stored, UTC_FORMAT).replace(tzinfo=timezone.utc)
+    local = moment.astimezone()
+    isocal = local.isocalendar()
+    return f"{isocal[0]:04d}-W{isocal[1]:02d}"
 
 
 class Ledger:
@@ -111,6 +114,14 @@ class Ledger:
             args = (since,)
         return self.conn.execute(sql + " ORDER BY timestamp, id", args).fetchall()
 
+    def entries_all(self, since: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT timestamp, provider, model, input_tokens, output_tokens, cost_usd, note FROM usage"
+        args: tuple = ()
+        if since:
+            sql += " WHERE timestamp >= ?"
+            args = (since,)
+        return self.conn.execute(sql + " ORDER BY timestamp, id", args).fetchall()
+
     def daily(self, since: str) -> list[sqlite3.Row]:
         return self.conn.execute(
             """
@@ -124,6 +135,68 @@ class Ledger:
             WHERE timestamp >= ?
             GROUP BY day
             ORDER BY day
+            """,
+            (since,),
+        ).fetchall()
+
+    def weekly(self, since: str) -> list[sqlite3.Row]:
+        rows = self.conn.execute(
+            """
+            SELECT timestamp, input_tokens, output_tokens, cost_usd
+            FROM usage
+            WHERE timestamp >= ?
+            """,
+            (since,),
+        ).fetchall()
+        buckets: dict[str, dict] = {}
+        for r in rows:
+            key = week_label(r["timestamp"])
+            b = buckets.setdefault(
+                key,
+                {
+                    "entries": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cost_sum": 0.0,
+                    "priced_count": 0,
+                    "unpriced": 0,
+                },
+            )
+            b["entries"] += 1
+            b["input_tokens"] += int(r["input_tokens"] or 0)
+            b["output_tokens"] += int(r["output_tokens"] or 0)
+            if r["cost_usd"] is None:
+                b["unpriced"] += 1
+            else:
+                b["cost_sum"] += float(r["cost_usd"] or 0.0)
+                b["priced_count"] += 1
+        result = []
+        for k, v in sorted(buckets.items(), key=lambda x: x[0]):
+            cost_usd = v["cost_sum"] if v["priced_count"] > 0 else None
+            result.append(
+                {
+                    "week": k,
+                    "entries": v["entries"],
+                    "input_tokens": v["input_tokens"],
+                    "output_tokens": v["output_tokens"],
+                    "cost_usd": cost_usd,
+                }
+            )
+        return result
+
+    def by_provider(self, since: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            """
+            SELECT provider,
+                   COUNT(*) AS entries,
+                   SUM(input_tokens) AS input_tokens,
+                   SUM(output_tokens) AS output_tokens,
+                   SUM(cost_usd) AS cost_usd,
+                   SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced
+            FROM usage
+            WHERE timestamp >= ?
+            GROUP BY provider
+            ORDER BY provider
             """,
             (since,),
         ).fetchall()

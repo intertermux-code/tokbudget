@@ -120,6 +120,27 @@ The window counts whole local days backwards from today, so `--days 1` means
 "since midnight", not "since this minute". Cost columns skip entries that have
 no price, and the footer tells you how many were skipped.
 
+
+### Group by different dimensions
+
+```bash
+tokbudget report --group-by day       # default
+tokbudget report --group-by week      # ISO week rollup
+tokbudget report --group-by provider  # rollup by provider
+tokbudget report --group-by model     # per-model breakdown
+```
+
+### Export raw ledger entries
+
+```bash
+tokbudget export                      # CSV to stdout
+tokbudget export --format csv         # CSV to stdout
+tokbudget export --format json        # JSON to stdout
+tokbudget export --out ledger.csv     # write to file
+tokbudget export --days 7             # last 7 days only
+```
+
+Fields: `timestamp` (UTC ISO-8601), `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd` (empty string in CSV / `null` in JSON when unknown), `note`.
 ### Prices
 
 ```bash
@@ -172,8 +193,7 @@ command.
 - `tokbudget import` readers for provider usage APIs, so logging is not manual.
 - A user-editable price file (`~/.tokbudget/pricing.json`) that overrides or
   extends the built-in table, plus `--cost` for one-offs.
-- Monthly rollups and a `--group-by provider` option on `report`.
-- CSV/JSON export of the raw ledger.
+
 - Currency other than USD.
 
 ## License

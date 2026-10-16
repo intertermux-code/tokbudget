@@ -36,10 +36,8 @@ def table(headers: list[str], rows: list[list[str]], align: str) -> str:
     return "\n".join(line.rstrip() for line in lines) + "\n"
 
 
-def report(ledger: Ledger, days: int = 7, now: datetime | None = None) -> str:
+def report(ledger: Ledger, days: int = 7, group_by: str = "day", now: datetime | None = None) -> str:
     since = window_start(days, now)
-    daily = ledger.daily(since)
-    models = ledger.by_model(since)
     totals = ledger.totals(since)
 
     current = now or datetime.now(timezone.utc)
@@ -47,7 +45,7 @@ def report(ledger: Ledger, days: int = 7, now: datetime | None = None) -> str:
 
     window = f"last {days} day{'s' if days != 1 else ''} ({first_day} to {last_day})"
 
-    if not daily:
+    if totals["entries"] == 0:
         return (
             f"No usage recorded in the {window}.\n"
             "Log an entry with: tokbudget log --provider openai --model gpt-4o "
@@ -56,25 +54,110 @@ def report(ledger: Ledger, days: int = 7, now: datetime | None = None) -> str:
 
     lines = [f"Token spend — {window}", ""]
 
-    lines.append("Per day")
-    lines.append(
-        table(
-            ["DAY", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
-            [
-                [
-                    row["day"],
-                    format_tokens(row["entries"]),
-                    format_tokens(row["input_tokens"]),
-                    format_tokens(row["output_tokens"]),
-                    format_money(row["cost_usd"]),
-                ]
-                for row in daily
-            ],
-            align="lrrrr",
-        ).rstrip("\n")
-    )
-    lines.append("")
+    group_by = (group_by or "day").lower()
 
+    if group_by == "day":
+        grouped = ledger.daily(since)
+        lines.append("Per day")
+        lines.append(
+            table(
+                ["DAY", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
+                [
+                    [
+                        row["day"],
+                        format_tokens(row["entries"]),
+                        format_tokens(row["input_tokens"]),
+                        format_tokens(row["output_tokens"]),
+                        format_money(row["cost_usd"]),
+                    ]
+                    for row in grouped
+                ],
+                align="lrrrr",
+            ).rstrip("\n")
+        )
+        lines.append("")
+    elif group_by == "week":
+        grouped = ledger.weekly(since)
+        lines.append("Per week")
+        lines.append(
+            table(
+                ["WEEK", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
+                [
+                    [
+                        row["week"],
+                        format_tokens(row["entries"]),
+                        format_tokens(row["input_tokens"]),
+                        format_tokens(row["output_tokens"]),
+                        format_money(row["cost_usd"]),
+                    ]
+                    for row in grouped
+                ],
+                align="lrrrr",
+            ).rstrip("\n")
+        )
+        lines.append("")
+    elif group_by == "provider":
+        grouped = ledger.by_provider(since)
+        lines.append("Per provider")
+        lines.append(
+            table(
+                ["PROVIDER", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
+                [
+                    [
+                        row["provider"],
+                        format_tokens(row["entries"]),
+                        format_tokens(row["input_tokens"]),
+                        format_tokens(row["output_tokens"]),
+                        format_money(row["cost_usd"]),
+                    ]
+                    for row in grouped
+                ],
+                align="lrrrr",
+            ).rstrip("\n")
+        )
+        lines.append("")
+    elif group_by == "model":
+        grouped = ledger.by_model(since)
+        lines.append("Per model")
+        lines.append(
+            table(
+                ["MODEL", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
+                [
+                    [
+                        row["model"],
+                        format_tokens(row["entries"]),
+                        format_tokens(row["input_tokens"]),
+                        format_tokens(row["output_tokens"]),
+                        format_money(row["cost_usd"]),
+                    ]
+                    for row in grouped
+                ],
+                align="lrrrr",
+            ).rstrip("\n")
+        )
+        lines.append("")
+    else:
+        grouped = ledger.daily(since)
+        lines.append("Per day")
+        lines.append(
+            table(
+                ["DAY", "ENTRIES", "INPUT", "OUTPUT", "COST(USD)"],
+                [
+                    [
+                        row["day"],
+                        format_tokens(row["entries"]),
+                        format_tokens(row["input_tokens"]),
+                        format_tokens(row["output_tokens"]),
+                        format_money(row["cost_usd"]),
+                    ]
+                    for row in grouped
+                ],
+                align="lrrrr",
+            ).rstrip("\n")
+        )
+        lines.append("")
+
+    models = ledger.by_model(since)
     lines.append("Per model")
     lines.append(
         table(

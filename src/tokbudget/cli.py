@@ -26,6 +26,16 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def non_negative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value!r} is not an integer")
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be at least 0")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tokbudget",
@@ -57,10 +67,37 @@ def build_parser() -> argparse.ArgumentParser:
     rep = subparsers.add_parser("report", help="spend per day, per model, and totals")
     rep.add_argument("--days", type=positive_int, default=7, metavar="N",
                      help="window in days, counted back from today (default: 7)")
+    rep.add_argument(
+        "--group-by",
+        choices=["day", "week", "provider", "model"],
+        default="day",
+        help="grouping for the first breakdown (default: day)",
+    )
     rep.set_defaults(handler=cmd_report)
 
     prov = subparsers.add_parser("providers", help="show the built-in price table")
     prov.set_defaults(handler=cmd_providers)
+
+    export = subparsers.add_parser("export", help="dump raw ledger entries")
+    export.add_argument(
+        "--format",
+        choices=["csv", "json"],
+        default="csv",
+        help="output format (default: csv)",
+    )
+    export.add_argument(
+        "--out",
+        metavar="PATH",
+        help="output path (default: stdout)",
+    )
+    export.add_argument(
+        "--days",
+        type=positive_int,
+        default=None,
+        metavar="N",
+        help="window in days, newest behavior consistent with log ordering (default: all)",
+    )
+    export.set_defaults(handler=cmd_export)
 
     return parser
 
@@ -101,7 +138,26 @@ def cmd_log(args: argparse.Namespace, ledger: Ledger) -> int:
 
 
 def cmd_report(args: argparse.Namespace, ledger: Ledger) -> int:
-    sys.stdout.write(report(ledger, days=args.days))
+    sys.stdout.write(report(ledger, days=args.days, group_by=args.group_by))
+    return 0
+
+
+def cmd_export(args: argparse.Namespace, ledger: Ledger) -> int:
+    from .export import export_entries
+
+    try:
+        export_entries(
+            ledger,
+            days=args.days,
+            fmt=args.format,
+            out=args.out,
+        )
+    except ValueError as error:
+        print(f"tokbudget: {error}", file=sys.stderr)
+        return 2
+    except OSError as error:
+        print(f"tokbudget: {error}", file=sys.stderr)
+        return 2
     return 0
 
 
