@@ -1,5 +1,7 @@
 # tokbudget
 
+[![PyPI](https://img.shields.io/pypi/v/tokbudget)](https://pypi.org/project/tokbudget/)
+
 A local-first ledger for what your LLM calls actually cost. One SQLite file,
 one command per call, no account, no network, no third-party runtime dependency.
 
@@ -31,7 +33,13 @@ ENTRIES  INPUT   OUTPUT  COST(USD)
 
 ## Install
 
-Python 3.10 or newer. From a checkout:
+Python 3.10 or newer. From PyPI:
+
+```bash
+pip install tokbudget
+```
+
+Or from a checkout:
 
 ```bash
 python3 -m venv .venv
@@ -48,7 +56,7 @@ The ledger is created on first use at `~/.tokbudget/ledger.db`. Choose another
 place with the `--db` flag or the `TOKBUDGET_DB` environment variable:
 
 ```bash
-tokbudget --db /Volumes/work/ledger.db report
+tokbudget --db ~/work/ledger.db report
 export TOKBUDGET_DB=~/projects/agent/ledger.db
 ```
 
@@ -184,7 +192,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-54 tests cover the ledger (insert, query, windowing, aggregation), the cost
+60 tests cover the ledger (insert, query, windowing, aggregation), the cost
 math including the unknown-model path, the report renderer, and every CLI
 command.
 
@@ -195,6 +203,33 @@ command.
   extends the built-in table, plus `--cost` for one-offs.
 
 - Currency other than USD.
+
+## Releasing
+
+Publishing to PyPI goes through GitHub Actions with trusted publishing (OIDC),
+so no API token is stored anywhere. One-time setup:
+
+1. On PyPI, open the `tokbudget` project page (register the name first if the
+   project is not there yet) and go to Publishing → Add a new publisher.
+   Pick GitHub, then fill in the owner `intertermux-code`, the repository
+   `tokbudget`, the workflow filename `publish.yml`, and the environment name
+   `pypi`.
+2. In this repository, create a GitHub environment called `pypi`
+   (Settings → Environments).
+
+After that, cutting a release is two steps:
+
+```bash
+# bump version in pyproject.toml, commit, then:
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+Pushing a `v*` tag runs `.github/workflows/publish.yml`: it builds the sdist
+and wheel and uploads them to PyPI. Publishing on a GitHub release
+(`release: published`) triggers the same workflow. If you draft the release on
+GitHub instead of pushing the tag directly, publish the release and the
+workflow runs from the tag it points at.
 
 ## License
 

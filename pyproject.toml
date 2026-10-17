@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tokbudget"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local-first ledger of LLM token usage and cost across providers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Clawdyy" }]
+authors = [{ name = "Clawdyy", email = "intertermux@gmail.com" }]
 keywords = ["llm", "tokens", "cost", "cli", "sqlite"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -23,6 +23,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/intertermux-code/tokbudget"
+Issues = "https://github.com/intertermux-code/tokbudget/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
