@@ -148,7 +148,7 @@ tokbudget export --out ledger.csv     # write to file
 tokbudget export --days 7             # last 7 days only
 ```
 
-Fields: `timestamp` (UTC ISO-8601), `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd` (empty string in CSV / `null` in JSON when unknown), `note`.
+Fields: `timestamp` (`YYYY-MM-DD HH:MM:SS`, UTC), `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd` (empty string in CSV / `null` in JSON when unknown), `note`.
 ### Prices
 
 ```bash
