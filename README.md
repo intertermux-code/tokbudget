@@ -149,6 +149,12 @@ tokbudget export --days 7             # last 7 days only
 ```
 
 Fields: `timestamp` (`YYYY-MM-DD HH:MM:SS`, UTC), `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd` (empty string in CSV / `null` in JSON when unknown), `note`.
+
+Rows come back newest first, and entries logged in the same second are ordered
+most recently written first, so re-exporting an unchanged ledger gives the same
+file. `--days N` keeps whole local days counted back from today, exactly like
+`report --days`; without it the export covers the whole ledger.
+
 ### Prices
 
 ```bash
@@ -192,9 +198,9 @@ pip install -e ".[dev]"
 pytest
 ```
 
-60 tests cover the ledger (insert, query, windowing, aggregation), the cost
-math including the unknown-model path, the report renderer, and every CLI
-command.
+69 tests cover the ledger (insert, query, windowing, aggregation, and the
+newest-first row order the export relies on), the cost math including the
+unknown-model path, the report renderer, and every CLI command.
 
 ## Roadmap
 

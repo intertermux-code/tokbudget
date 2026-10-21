@@ -21,6 +21,10 @@ CREATE INDEX IF NOT EXISTS usage_model ON usage(provider, model);
 
 UTC_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# Entry rows read top-down, most recent first; id breaks ties between entries
+# that share a second, so the order is stable across runs.
+NEWEST_FIRST = " ORDER BY timestamp DESC, id DESC"
+
 
 def default_db_path() -> Path:
     return Path.home() / ".tokbudget" / "ledger.db"
@@ -112,7 +116,7 @@ class Ledger:
         if since:
             sql += " WHERE timestamp >= ?"
             args = (since,)
-        return self.conn.execute(sql + " ORDER BY timestamp, id", args).fetchall()
+        return self.conn.execute(sql + NEWEST_FIRST, args).fetchall()
 
     def entries_all(self, since: str | None = None) -> list[sqlite3.Row]:
         sql = "SELECT timestamp, provider, model, input_tokens, output_tokens, cost_usd, note FROM usage"
@@ -120,7 +124,7 @@ class Ledger:
         if since:
             sql += " WHERE timestamp >= ?"
             args = (since,)
-        return self.conn.execute(sql + " ORDER BY timestamp, id", args).fetchall()
+        return self.conn.execute(sql + NEWEST_FIRST, args).fetchall()
 
     def daily(self, since: str) -> list[sqlite3.Row]:
         return self.conn.execute(

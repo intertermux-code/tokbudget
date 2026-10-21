@@ -1,4 +1,6 @@
+import io
 import sqlite3
+from contextlib import redirect_stdout
 
 import pytest
 
@@ -21,6 +23,14 @@ def read_rows(db):
         return [dict(row) for row in conn.execute("SELECT * FROM usage")]
     finally:
         conn.close()
+
+
+def flat_help(*argv):
+    """--help output with the line wrapping undone, so phrases match whole."""
+    buffer = io.StringIO()
+    with pytest.raises(SystemExit), redirect_stdout(buffer):
+        main(list(argv))
+    return " ".join(buffer.getvalue().split())
 
 
 def test_log_with_explicit_cost(db, capsys):
@@ -132,3 +142,18 @@ def test_report_totals_cover_every_entry_in_the_window(db, capsys):
     assert "gpt-4o-mini" in out and "claude-3-5-haiku" in out
     assert out.split("Totals")[1].splitlines()[2].split()[0] == "3"
     assert "1 entry had no price match" in out
+
+
+def test_export_days_help_states_the_window_and_the_order():
+    assert ("--days N window in days, counted back from today (default: all); "
+            "rows come back newest first") in flat_help("export", "--help")
+
+
+def test_export_days_help_drops_the_garbled_wording():
+    help_text = flat_help("export", "--help").lower()
+    assert "newest behavior consistent with log ordering" not in help_text
+
+
+def test_report_days_help_still_describes_the_window():
+    assert "--days N window in days, counted back from today (default: 7)" in \
+        flat_help("report", "--help")

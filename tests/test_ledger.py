@@ -94,6 +94,48 @@ def test_entries_since_filters_older_rows(ledger):
     assert len(ledger.entries(window_start(7, NOW))) == 1
 
 
+def test_entries_come_back_newest_first(ledger):
+    for hours_ago in (0, 3, 6):
+        ledger.add("openai", "gpt-4o", 10, 10, 0.001,
+                   timestamp=NOW - timedelta(hours=hours_ago))
+    assert [row["timestamp"] for row in ledger.entries()] == [
+        "2026-10-16 12:00:00", "2026-10-16 09:00:00", "2026-10-16 06:00:00",
+    ]
+
+
+def test_entries_tie_on_the_second_breaks_by_id(ledger):
+    first = ledger.add("openai", "gpt-4o", 10, 10, 0.001, timestamp=NOW)
+    second = ledger.add("anthropic", "claude-sonnet-4", 10, 10, 0.001,
+                        timestamp=NOW)
+    assert [row["id"] for row in ledger.entries()] == [second, first]
+
+
+def test_entries_all_matches_the_entry_order(ledger):
+    ledger.add("openai", "gpt-4o", 10, 10, 0.001, timestamp=NOW)
+    ledger.add("google", "gemini-2.5-flash", 10, 10, 0.001, timestamp=NOW)
+    ledger.add("deepseek", "deepseek-chat", 10, 10, 0.001,
+               timestamp=NOW - timedelta(days=1))
+    export_keys = [(row["timestamp"], row["provider"])
+                   for row in ledger.entries_all()]
+    assert export_keys == [
+        ("2026-10-16 12:00:00", "google"),
+        ("2026-10-16 12:00:00", "openai"),
+        ("2026-10-15 12:00:00", "deepseek"),
+    ]
+    assert export_keys == [(row["timestamp"], row["provider"])
+                           for row in ledger.entries()]
+
+
+def test_entries_all_since_filters_without_losing_the_order(ledger):
+    for days_ago in (0, 1, 20):
+        ledger.add("openai", "gpt-4o", 10, 10, 0.001,
+                   timestamp=NOW - timedelta(days=days_ago))
+    rows = ledger.entries_all(window_start(7, NOW))
+    assert [row["timestamp"] for row in rows] == [
+        "2026-10-16 12:00:00", "2026-10-15 12:00:00",
+    ]
+
+
 def test_daily_groups_by_local_day(ledger):
     ledger.add("openai", "gpt-4o", 1000, 200, 0.005, timestamp=NOW)
     ledger.add("openai", "gpt-4o", 500, 100, 0.002, timestamp=NOW - timedelta(hours=26))

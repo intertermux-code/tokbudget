@@ -95,7 +95,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=positive_int,
         default=None,
         metavar="N",
-        help="window in days, newest behavior consistent with log ordering (default: all)",
+        help="window in days, counted back from today (default: all); "
+             "rows come back newest first",
     )
     export.set_defaults(handler=cmd_export)
 
